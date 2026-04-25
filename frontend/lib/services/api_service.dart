@@ -134,4 +134,13 @@ class ApiService {
     if (response.statusCode == 200) return jsonDecode(response.body)['likes'];
     return 0;
   }
+
+  // SEARCH
+  Future<List<dynamic>> searchBlogs(String tag) async {
+    final response = await http.get(
+      Uri.parse('$baseUrl/blogs/search?tag=${Uri.encodeComponent(tag)}'),
+    );
+    if (response.statusCode == 200) return jsonDecode(response.body);
+    throw Exception('Search failed');
+  }
 }

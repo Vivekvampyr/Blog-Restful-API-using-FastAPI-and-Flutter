@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
 import '../models/blog.dart';
-import '../widgets/blog_card.dart'; // ← added
+import '../widgets/blog_card.dart';
 import 'blog_detail_screen.dart';
 import 'create_blog_screen.dart';
 import 'login_screen.dart';
@@ -15,7 +15,9 @@ class BlogListScreen extends StatefulWidget {
 
 class _BlogListScreenState extends State<BlogListScreen> {
   final _api = ApiService();
+  final _searchCtrl = TextEditingController();
   late Future<List<Blog>> _blogs;
+  bool _isSearching = false;
 
   @override
   void initState() {
@@ -27,6 +29,31 @@ class _BlogListScreenState extends State<BlogListScreen> {
     _blogs = _api.getBlogs().then(
       (list) => list.map((e) => Blog.fromJson(e)).toList(),
     );
+  }
+
+  void _searchBlogs(String tag) {
+    if (tag.trim().isEmpty) {
+      // if search is cleared, go back to all blogs
+      setState(() {
+        _isSearching = false;
+        _loadBlogs();
+      });
+      return;
+    }
+    setState(() {
+      _isSearching = true;
+      _blogs = _api
+          .searchBlogs(tag.trim())
+          .then((list) => list.map((e) => Blog.fromJson(e)).toList());
+    });
+  }
+
+  void _clearSearch() {
+    _searchCtrl.clear();
+    setState(() {
+      _isSearching = false;
+      _loadBlogs();
+    });
   }
 
   Future<void> _logout() async {
@@ -58,39 +85,77 @@ class _BlogListScreenState extends State<BlogListScreen> {
         },
         child: const Icon(Icons.add),
       ),
-      body: FutureBuilder<List<Blog>>(
-        future: _blogs,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          if (snapshot.hasError) {
-            return Center(child: Text('Error: ${snapshot.error}'));
-          }
+      body: Column(
+        children: [
+          // ─── Search Bar ───────────────────────────────────
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 12, 12, 4),
+            child: TextField(
+              controller: _searchCtrl,
+              onSubmitted: _searchBlogs, // search on keyboard "done"
+              decoration: InputDecoration(
+                hintText: 'Search by tag...',
+                prefixIcon: const Icon(Icons.search),
+                suffixIcon:
+                    _isSearching
+                        ? IconButton(
+                          icon: const Icon(Icons.close),
+                          onPressed: _clearSearch, // ← clears and reloads all
+                        )
+                        : null,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                contentPadding: const EdgeInsets.symmetric(vertical: 0),
+              ),
+            ),
+          ),
 
-          final blogs = snapshot.data!;
-          if (blogs.isEmpty) return const Center(child: Text('No blogs yet.'));
+          // ─── Blog List ────────────────────────────────────
+          Expanded(
+            child: FutureBuilder<List<Blog>>(
+              future: _blogs,
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                if (snapshot.hasError) {
+                  return Center(child: Text('Error: ${snapshot.error}'));
+                }
 
-          return ListView.separated(
-            padding: const EdgeInsets.all(12),
-            itemCount: blogs.length,
-            separatorBuilder: (_, __) => const SizedBox(height: 8),
-            itemBuilder: (context, index) {
-              final blog = blogs[index];
-              // ↓ replaced Card+ListTile with BlogCard
-              return BlogCard(
-                blog: blog,
-                onTap:
-                    () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => BlogDetailScreen(blog: blog),
-                      ),
+                final blogs = snapshot.data!;
+                if (blogs.isEmpty) {
+                  return Center(
+                    child: Text(
+                      _isSearching
+                          ? 'No blogs found for "${_searchCtrl.text}"'
+                          : 'No blogs yet.',
                     ),
-              );
-            },
-          );
-        },
+                  );
+                }
+
+                return ListView.separated(
+                  padding: const EdgeInsets.all(12),
+                  itemCount: blogs.length,
+                  separatorBuilder: (_, __) => const SizedBox(height: 8),
+                  itemBuilder: (context, index) {
+                    final blog = blogs[index];
+                    return BlogCard(
+                      blog: blog,
+                      onTap:
+                          () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => BlogDetailScreen(blog: blog),
+                            ),
+                          ),
+                    );
+                  },
+                );
+              },
+            ),
+          ),
+        ],
       ),
     );
   }

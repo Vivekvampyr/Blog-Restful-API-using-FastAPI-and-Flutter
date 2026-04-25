@@ -15,9 +15,10 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'Blog App',
       debugShowCheckedModeBanner: false,
+      darkTheme: ThemeData.dark(),
       theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
-        useMaterial3: true,
+        scaffoldBackgroundColor: Colors.grey[100],
+        colorScheme: ColorScheme.fromSeed(seedColor: Colors.grey),
       ),
       home: const AuthGate(),
     );
